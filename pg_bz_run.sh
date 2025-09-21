@@ -6,7 +6,7 @@ DATA_DIR="$BASE_DIR/data"
 START_SCRIPT="$DATA_DIR/start-agent.sh"
 COMPOSE_FILE="$BASE_DIR/docker-compose.yml"
 
-# ⚙️ 配置參數
+# ⚙️ 配置參數 (請改成你自己的 Hub)
 HUB_URL="http://43.128.60.111:8090"
 LISTEN="45876"
 TOKEN="ef517673-d9b3-4685-b1a6-fb47325d8dd1"   # 通用令牌，有效期 1 小時
@@ -40,7 +40,16 @@ if ! command -v docker &> /dev/null; then
       ;;
     centos|rhel|rocky|almalinux)
       yum install -y yum-utils
-      yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+      # 👉 使用阿里雲鏡像源 (解決官方源無法訪問問題)
+      tee /etc/yum.repos.d/docker-ce.repo <<-'EOF'
+[docker-ce-stable]
+name=Docker CE Stable - $basearch
+baseurl=https://mirrors.aliyun.com/docker-ce/linux/centos/7/$basearch/stable
+enabled=1
+gpgcheck=1
+gpgkey=https://mirrors.aliyun.com/docker-ce/linux/centos/gpg
+EOF
+      yum makecache fast
       yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
       systemctl enable docker
       systemctl start docker
