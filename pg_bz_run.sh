@@ -40,7 +40,7 @@ if ! command -v docker &> /dev/null; then
       ;;
     centos|rhel|rocky|almalinux)
       yum install -y yum-utils
-      # 👉 使用阿里雲鏡像源 (解決官方源無法訪問問題)
+      # 👉 使用阿里雲 Docker CE 鏡像源
       tee /etc/yum.repos.d/docker-ce.repo <<-'EOF'
 [docker-ce-stable]
 name=Docker CE Stable - $basearch
@@ -64,7 +64,25 @@ else
   echo "✅ Docker 已安裝"
 fi
 
-# 0.1 檢查 docker compose
+# 0.1 配置 Docker Hub 加速器
+echo "⚙️ 配置 Docker Hub 加速器..."
+mkdir -p /etc/docker
+tee /etc/docker/daemon.json <<-'EOF'
+{
+  "registry-mirrors": [
+    "https://mirror.ccs.tencentyun.com",
+    "https://registry.docker-cn.com",
+    "https://docker.mirrors.ustc.edu.cn",
+    "https://hub-mirror.c.163.com"
+  ]
+}
+EOF
+
+systemctl daemon-reexec
+systemctl restart docker
+echo "✅ 已配置加速器"
+
+# 0.2 檢查 docker compose
 if ! docker compose version &> /dev/null; then
   echo "⚠️ 沒有 docker compose plugin，開始安裝..."
   DOCKER_CONFIG=${DOCKER_CONFIG:-$HOME/.docker}
