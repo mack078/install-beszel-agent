@@ -11,6 +11,10 @@ HUB_URL="http://43.128.60.111:8090"
 LISTEN="45876"
 TOKEN="ef517673-d9b3-4685-b1a6-fb47325d8dd1"   # 通用令牌，有效期 1 小時
 
+# 主鏡像 & 備用阿里雲鏡像
+IMAGE_MAIN="henrygd/beszel-agent:latest"
+IMAGE_MIRROR="registry.cn-hongkong.aliyuncs.com/mackrepo/beszel-agent:latest"
+
 echo "🚀 開始安裝 Beszel Agent..."
 
 # 0. 檢查 Docker 是否安裝
@@ -153,11 +157,19 @@ EOF
 chmod +x "$START_SCRIPT"
 echo "📝 已建立 $START_SCRIPT"
 
-# 3. 建立 docker-compose.yml
+# 3. 嘗試拉取主鏡像，失敗就用阿里雲
+echo "📥 嘗試拉取 $IMAGE_MAIN ..."
+if ! docker pull $IMAGE_MAIN; then
+  echo "⚠️ 無法拉取 $IMAGE_MAIN，改用阿里雲鏡像 $IMAGE_MIRROR"
+  docker pull $IMAGE_MIRROR
+  docker tag $IMAGE_MIRROR $IMAGE_MAIN
+fi
+
+# 4. 建立 docker-compose.yml
 cat > "$COMPOSE_FILE" << EOF
 services:
   beszel-agent:
-    image: henrygd/beszel-agent
+    image: $IMAGE_MAIN
     container_name: beszel-agent
     restart: unless-stopped
     network_mode: host
@@ -173,7 +185,7 @@ EOF
 
 echo "📝 已建立 $COMPOSE_FILE"
 
-# 4. 啟動服務
+# 5. 啟動服務
 docker compose -f "$COMPOSE_FILE" down || true
 docker compose -f "$COMPOSE_FILE" up -d
 
