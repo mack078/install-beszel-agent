@@ -17,10 +17,9 @@ IMAGE_MIRROR="registry.cn-hongkong.aliyuncs.com/mackrepo/beszel-agent:latest"
 
 echo "🚀 開始安裝 Beszel Agent..."
 
-# 0. 檢查 Docker 是否安裝
+# ---------------- Docker 安裝 ----------------
 if ! command -v docker &> /dev/null; then
   echo "⚠️ 系統尚未安裝 Docker，開始安裝..."
-
   if [ -f /etc/os-release ]; then
     . /etc/os-release
     OS=$ID
@@ -44,7 +43,6 @@ if ! command -v docker &> /dev/null; then
       ;;
     centos|rhel|rocky|almalinux)
       yum install -y yum-utils
-      # 👉 使用阿里雲 Docker CE 鏡像源
       tee /etc/yum.repos.d/docker-ce.repo <<-'EOF'
 [docker-ce-stable]
 name=Docker CE Stable - $basearch
@@ -68,8 +66,7 @@ else
   echo "✅ Docker 已安裝"
 fi
 
-# 0.1 配置 Docker Hub 加速器
-echo "⚙️ 配置 Docker Hub 加速器..."
+# ---------------- Docker Hub 加速器 ----------------
 mkdir -p /etc/docker
 tee /etc/docker/daemon.json <<-'EOF'
 {
@@ -81,30 +78,28 @@ tee /etc/docker/daemon.json <<-'EOF'
   ]
 }
 EOF
-
 systemctl daemon-reexec
 systemctl restart docker
-echo "✅ 已配置加速器"
 
-# 0.2 檢查 docker compose
+# ---------------- docker compose ----------------
 if ! docker compose version &> /dev/null; then
-  echo "⚠️ 沒有 docker compose plugin，開始安裝..."
   DOCKER_CONFIG=${DOCKER_CONFIG:-$HOME/.docker}
   mkdir -p $DOCKER_CONFIG/cli-plugins
   curl -SL https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-$(uname -s)-$(uname -m) \
     -o $DOCKER_CONFIG/cli-plugins/docker-compose
   chmod +x $DOCKER_CONFIG/cli-plugins/docker-compose
-  echo "✅ docker compose 安裝完成"
-else
-  echo "✅ docker compose 已安裝"
 fi
 
-# 1. 建立資料目錄
+# ---------------- 資料目錄 ----------------
 mkdir -p "$DATA_DIR"
 
-# 2. 建立 start-agent.sh
+# ---------------- start-agent.sh ----------------
 cat > "$START_SCRIPT" << 'EOF'
 #!/bin/sh
+# 匯出環境變數，避免 agent 啟動找不到
+export HUB_URL=$HUB_URL
+export TOKEN=$TOKEN
+
 DATA_DIR="/var/lib/beszel-agent"
 FINGERPRINT_FILE="$DATA_DIR/fingerprint.txt"
 LOG_FILE="$DATA_DIR/agent.log"
@@ -134,7 +129,6 @@ start_with_token() {
   start_with_fingerprint
 }
 
-# --- 主流程 ---
 if [ -f "$FINGERPRINT_FILE" ]; then
   echo "📂 檢測到 Fingerprint，嘗試登入..."
   /beszel-agent --hub-url $HUB_URL --fingerprint $(cat $FINGERPRINT_FILE) > $LOG_FILE 2>&1 &
@@ -155,9 +149,8 @@ fi
 EOF
 
 chmod +x "$START_SCRIPT"
-echo "📝 已建立 $START_SCRIPT"
 
-# 3. 嘗試拉取主鏡像，失敗就用阿里雲
+# ---------------- 嘗試拉取鏡像 ----------------
 echo "📥 嘗試拉取 $IMAGE_MAIN ..."
 if ! docker pull $IMAGE_MAIN; then
   echo "⚠️ 無法拉取 $IMAGE_MAIN，改用阿里雲鏡像 $IMAGE_MIRROR"
@@ -165,7 +158,7 @@ if ! docker pull $IMAGE_MAIN; then
   docker tag $IMAGE_MIRROR $IMAGE_MAIN
 fi
 
-# 4. 建立 docker-compose.yml
+# ---------------- docker-compose.yml ----------------
 cat > "$COMPOSE_FILE" << EOF
 services:
   beszel-agent:
@@ -183,9 +176,7 @@ services:
     command: ["/bin/sh", "/var/lib/beszel-agent/start-agent.sh"]
 EOF
 
-echo "📝 已建立 $COMPOSE_FILE"
-
-# 5. 啟動服務
+# ---------------- 啟動 ----------------
 docker compose -f "$COMPOSE_FILE" down || true
 docker compose -f "$COMPOSE_FILE" up -d
 
