@@ -26,8 +26,10 @@ if ! command -v docker &> /dev/null; then
     . /etc/os-release
     OS=$ID
   else
-    echo "❌ 無法識別系統版本，請手動安裝 Docker"
-    exit 1
+    echo "❌ 無法識別系統版本，使用 get.docker.com 安裝"
+    curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
+    systemctl enable docker
+    systemctl start docker
   fi
 
   case "$OS" in
@@ -59,7 +61,7 @@ EOF
       systemctl start docker
       ;;
     *)
-      echo "⚠️ 未知系統，使用 get.docker.com 阿里雲安裝"
+      echo "⚠️ 未知系統，使用 get.docker.com 安裝"
       curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
       systemctl enable docker
       systemctl start docker
@@ -87,11 +89,15 @@ systemctl restart docker
 
 # ---------------- docker compose 檢查 ----------------
 if ! docker compose version &> /dev/null; then
+  echo "⚠️ 未找到 docker compose，開始安裝..."
   DOCKER_CONFIG=${DOCKER_CONFIG:-$HOME/.docker}
   mkdir -p $DOCKER_CONFIG/cli-plugins
   curl -SL https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-$(uname -s)-$(uname -m) \
     -o $DOCKER_CONFIG/cli-plugins/docker-compose
   chmod +x $DOCKER_CONFIG/cli-plugins/docker-compose
+  echo "✅ docker compose 安裝完成"
+else
+  echo "✅ docker compose 已安裝"
 fi
 
 # ---------------- 資料目錄 ----------------
@@ -187,4 +193,4 @@ docker compose -f "$COMPOSE_FILE" up -d
 
 echo "✅ Beszel Agent 已安裝並啟動完成！"
 echo "📂 目錄: $BASE_DIR"
-echo "📂 指紋 & 日誌: $DATA_DIR_
+echo "📂 指紋 & 日誌: $DATA_DIR"
