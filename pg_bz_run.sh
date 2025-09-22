@@ -18,8 +18,81 @@ IMAGE_MIRROR="registry.cn-hongkong.aliyuncs.com/mackrepo/beszel-agent:latest"
 
 echo "🚀 開始安裝 Beszel Agent..."
 
-# ---------------- Docker 安裝 (略，跟之前相同) ----------------
-# 我省略重複的安裝/加速器/compose 檢查邏輯，保持不變
+# ---------------- Docker 安裝 ----------------
+if ! command -v docker &> /dev/null; then
+  echo "⚠️ 系統尚未安裝 Docker，開始安裝..."
+
+  if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    OS=$ID
+  else
+    echo "❌ 無法識別系統版本，請手動安裝 Docker"
+    exit 1
+  fi
+
+  case "$OS" in
+    ubuntu|debian)
+      apt-get update
+      apt-get install -y ca-certificates curl gnupg lsb-release
+      install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/$OS/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+      chmod a+r /etc/apt/keyrings/docker.gpg
+      echo \
+        "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$OS \
+        $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+      apt-get update
+      apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      ;;
+    centos|rhel|rocky|almalinux)
+      yum install -y yum-utils
+      tee /etc/yum.repos.d/docker-ce.repo <<-'EOF'
+[docker-ce-stable]
+name=Docker CE Stable - $basearch
+baseurl=https://mirrors.aliyun.com/docker-ce/linux/centos/7/$basearch/stable
+enabled=1
+gpgcheck=1
+gpgkey=https://mirrors.aliyun.com/docker-ce/linux/centos/gpg
+EOF
+      yum makecache fast
+      yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      systemctl enable docker
+      systemctl start docker
+      ;;
+    *)
+      echo "⚠️ 未知系統，使用 get.docker.com 阿里雲安裝"
+      curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
+      systemctl enable docker
+      systemctl start docker
+      ;;
+  esac
+  echo "✅ Docker 安裝完成"
+else
+  echo "✅ Docker 已安裝"
+fi
+
+# ---------------- Docker Hub 加速器 ----------------
+mkdir -p /etc/docker
+tee /etc/docker/daemon.json <<-'EOF'
+{
+  "registry-mirrors": [
+    "https://mirror.ccs.tencentyun.com",
+    "https://registry.docker-cn.com",
+    "https://docker.mirrors.ustc.edu.cn",
+    "https://hub-mirror.c.163.com"
+  ]
+}
+EOF
+systemctl daemon-reexec
+systemctl restart docker
+
+# ---------------- docker compose 檢查 ----------------
+if ! docker compose version &> /dev/null; then
+  DOCKER_CONFIG=${DOCKER_CONFIG:-$HOME/.docker}
+  mkdir -p $DOCKER_CONFIG/cli-plugins
+  curl -SL https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-$(uname -s)-$(uname -m) \
+    -o $DOCKER_CONFIG/cli-plugins/docker-compose
+  chmod +x $DOCKER_CONFIG/cli-plugins/docker-compose
+fi
 
 # ---------------- 資料目錄 ----------------
 mkdir -p "$DATA_DIR"
@@ -27,7 +100,6 @@ mkdir -p "$DATA_DIR"
 # ---------------- start-agent.sh ----------------
 cat > "$START_SCRIPT" << 'EOF'
 #!/bin/sh
-# 匯出環境變數，避免 agent 啟動找不到
 export HUB_URL=$HUB_URL
 export TOKEN=$TOKEN
 export KEY=$KEY
@@ -81,7 +153,6 @@ fi
 EOF
 
 chmod +x "$START_SCRIPT"
-echo "📝 已建立 $START_SCRIPT"
 
 # ---------------- 嘗試拉取鏡像 ----------------
 echo "📥 嘗試拉取 $IMAGE_MAIN ..."
@@ -110,12 +181,10 @@ services:
     command: ["/bin/sh", "/var/lib/beszel-agent/start-agent.sh"]
 EOF
 
-echo "📝 已建立 $COMPOSE_FILE"
-
 # ---------------- 啟動 ----------------
 docker compose -f "$COMPOSE_FILE" down || true
 docker compose -f "$COMPOSE_FILE" up -d
 
 echo "✅ Beszel Agent 已安裝並啟動完成！"
 echo "📂 目錄: $BASE_DIR"
-echo "📂 指紋 & 日誌: $DATA_DIR"
+echo "📂 指紋 & 日誌: $DATA_DIR_
