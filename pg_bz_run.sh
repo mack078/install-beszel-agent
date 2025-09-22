@@ -6,7 +6,7 @@ DATA_DIR="$BASE_DIR/data"
 START_SCRIPT="$DATA_DIR/start-agent.sh"
 COMPOSE_FILE="$BASE_DIR/docker-compose.yml"
 
-# ⚙️ 配置參數 (請改成你自己的 Hub)
+# ⚙️ 配置參數
 HUB_URL="http://43.128.60.111:8090"
 LISTEN="45876"
 TOKEN="72a9f592-d4ca-4cc8-a34a-46a376fdd00c"   # 通用令牌，有效期 1 小時
@@ -26,10 +26,7 @@ if ! command -v docker &> /dev/null; then
     . /etc/os-release
     OS=$ID
   else
-    echo "❌ 無法識別系統版本，使用 get.docker.com 安裝"
-    curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
-    systemctl enable docker
-    systemctl start docker
+    OS="unknown"
   fi
 
   case "$OS" in
@@ -61,16 +58,20 @@ EOF
       systemctl start docker
       ;;
     *)
-      echo "⚠️ 未知系統，使用 get.docker.com 安裝"
+      echo "⚠️ 未知系統，使用 get.docker.com 阿里雲安裝"
       curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
       systemctl enable docker
       systemctl start docker
       ;;
   esac
-  echo "✅ Docker 安裝完成"
-else
-  echo "✅ Docker 已安裝"
 fi
+
+# 驗證 Docker 是否成功安裝
+if ! command -v docker &> /dev/null; then
+  echo "❌ Docker 安裝失敗，請手動檢查"
+  exit 1
+fi
+echo "✅ Docker 已安裝: $(docker --version)"
 
 # ---------------- Docker Hub 加速器 ----------------
 mkdir -p /etc/docker
@@ -95,10 +96,14 @@ if ! docker compose version &> /dev/null; then
   curl -SL https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-$(uname -s)-$(uname -m) \
     -o $DOCKER_CONFIG/cli-plugins/docker-compose
   chmod +x $DOCKER_CONFIG/cli-plugins/docker-compose
-  echo "✅ docker compose 安裝完成"
-else
-  echo "✅ docker compose 已安裝"
 fi
+
+# 驗證 docker compose
+if ! docker compose version &> /dev/null; then
+  echo "❌ docker compose 安裝失敗"
+  exit 1
+fi
+echo "✅ docker compose 已安裝: $(docker compose version)"
 
 # ---------------- 資料目錄 ----------------
 mkdir -p "$DATA_DIR"
