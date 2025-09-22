@@ -9,7 +9,7 @@ COMPOSE_FILE="$BASE_DIR/docker-compose.yml"
 # ⚙️ 配置參數 (請改成你自己的 Hub)
 HUB_URL="http://43.128.60.111:8090"
 LISTEN="45876"
-TOKEN="93bafc66-b137-4f49-829a-c2fc0d807832"   # 通用令牌，有效期 1 小時
+TOKEN="72a9f592-d4ca-4cc8-a34a-46a376fdd00c"   # 通用令牌，有效期 1 小時
 KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO9ktQKLXyOAI9V0BLFQAR+MU7/BbSPQ6bOOOgGTVs6x"
 
 # 主鏡像 & 備用阿里雲鏡像
