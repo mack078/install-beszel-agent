@@ -21,14 +21,12 @@ echo "🚀 開始安裝 Beszel Agent..."
 # ---------------- Docker 安裝 ----------------
 if ! command -v docker &> /dev/null; then
   echo "⚠️ 系統尚未安裝 Docker，開始安裝..."
-
   if [ -f /etc/os-release ]; then
     . /etc/os-release
     OS=$ID
   else
     OS="unknown"
   fi
-
   case "$OS" in
     ubuntu|debian)
       apt-get update
@@ -40,10 +38,10 @@ if ! command -v docker &> /dev/null; then
         "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$OS \
         $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
       apt-get update
-      apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin dos2unix
       ;;
     centos|rhel|rocky|almalinux)
-      yum install -y yum-utils
+      yum install -y yum-utils dos2unix
       tee /etc/yum.repos.d/docker-ce.repo <<-'EOF'
 [docker-ce-stable]
 name=Docker CE Stable - $basearch
@@ -60,6 +58,7 @@ EOF
     *)
       echo "⚠️ 未知系統，使用 get.docker.com 阿里雲安裝"
       curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
+      yum install -y dos2unix || apt-get install -y dos2unix || true
       systemctl enable docker
       systemctl start docker
       ;;
@@ -161,6 +160,7 @@ fi
 EOF
 
 chmod +x "$START_SCRIPT"
+dos2unix "$START_SCRIPT" >/dev/null 2>&1 || true
 
 # ---------------- 嘗試拉取鏡像 ----------------
 echo "📥 嘗試拉取 $IMAGE_MAIN ..."
