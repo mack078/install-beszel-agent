@@ -182,10 +182,10 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - $DATA_DIR:/var/lib/beszel-agent
     environment:
-      LISTEN: $LISTEN
-      TOKEN: $TOKEN
-      HUB_URL: $HUB_URL
-      KEY: $KEY
+      LISTEN: "$LISTEN"
+      TOKEN: "$TOKEN"
+      HUB_URL: "$HUB_URL"
+      KEY: "$KEY"
     command: ["/bin/sh", "/var/lib/beszel-agent/start-agent.sh"]
 EOF
 
