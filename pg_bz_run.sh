@@ -109,54 +109,51 @@ echo "✅ docker compose 已安裝: $(docker compose version)"
 mkdir -p "$DATA_DIR"
 
 # ---------------- start-agent.sh ----------------
-cat > "$START_SCRIPT" << 'EOF'
+cat > "$START_SCRIPT" << EOF
 #!/bin/sh
-export HUB_URL=$HUB_URL
-export TOKEN=$TOKEN
-export KEY=$KEY
 
 DATA_DIR="/var/lib/beszel-agent"
-FINGERPRINT_FILE="$DATA_DIR/fingerprint.txt"
-LOG_FILE="$DATA_DIR/agent.log"
+FINGERPRINT_FILE="\$DATA_DIR/fingerprint.txt"
+LOG_FILE="\$DATA_DIR/agent.log"
 
 start_with_fingerprint() {
   echo "✅ 使用 Fingerprint 啟動"
-  exec /beszel-agent --hub-url $HUB_URL --fingerprint $(cat $FINGERPRINT_FILE)
+  exec /beszel-agent --hub-url $HUB_URL --fingerprint \$(cat \$FINGERPRINT_FILE)
 }
 
 start_with_token() {
   echo "🔑 使用 TOKEN 註冊..."
-  /beszel-agent --hub-url $HUB_URL --token $TOKEN > $LOG_FILE 2>&1 &
-  AGENT_PID=$!
+  /beszel-agent --hub-url $HUB_URL --token $TOKEN > \$LOG_FILE 2>&1 &
+  AGENT_PID=\$!
 
   sleep 6
-  FINGERPRINT=$(grep "fingerprint" $LOG_FILE | tail -n1 | awk '{print $NF}')
+  FINGERPRINT=\$(grep "fingerprint" \$LOG_FILE | tail -n1 | awk '{print \$NF}')
 
-  if [ -n "$FINGERPRINT" ]; then
-    echo $FINGERPRINT > $FINGERPRINT_FILE
-    echo "✅ Fingerprint 已保存：$FINGERPRINT"
+  if [ -n "\$FINGERPRINT" ]; then
+    echo \$FINGERPRINT > \$FINGERPRINT_FILE
+    echo "✅ Fingerprint 已保存：\$FINGERPRINT"
   else
-    echo "❌ 沒擷取到 Fingerprint，請檢查日誌：$LOG_FILE"
+    echo "❌ 沒擷取到 Fingerprint，請檢查日誌：\$LOG_FILE"
   fi
 
-  kill $AGENT_PID || true
+  kill \$AGENT_PID || true
   sleep 2
   start_with_fingerprint
 }
 
-if [ -f "$FINGERPRINT_FILE" ]; then
+if [ -f "\$FINGERPRINT_FILE" ]; then
   echo "📂 檢測到 Fingerprint，嘗試登入..."
-  /beszel-agent --hub-url $HUB_URL --fingerprint $(cat $FINGERPRINT_FILE) > $LOG_FILE 2>&1 &
-  AGENT_PID=$!
+  /beszel-agent --hub-url $HUB_URL --fingerprint \$(cat \$FINGERPRINT_FILE) > \$LOG_FILE 2>&1 &
+  AGENT_PID=\$!
   sleep 8
-  if grep -q "fingerprint mismatch" $LOG_FILE; then
+  if grep -q "fingerprint mismatch" \$LOG_FILE; then
     echo "⚠️ fingerprint mismatch，刪除並重新註冊..."
-    rm -f $FINGERPRINT_FILE
-    kill $AGENT_PID || true
+    rm -f \$FINGERPRINT_FILE
+    kill \$AGENT_PID || true
     sleep 2
     start_with_token
   else
-    wait $AGENT_PID
+    wait \$AGENT_PID
   fi
 else
   start_with_token
